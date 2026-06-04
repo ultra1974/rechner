@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Xyrarock" />
+  <title>Xyrarock Rechner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --black: #0a0a0a;
+      --surface: #111111;
+      --surface2: #1a1a1a;
+      --border: #2a2a2a;
+      --accent: #c8ff00;
+      --text: #f0f0f0;
+      --muted: #555;
+      --danger: #ff4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      height: 100%;
+      background: var(--black);
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      padding: env(safe-area-inset-top, 44px) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 34px) env(safe-area-inset-left, 0);
+    }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      padding: 0 20px;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* Header */
+    .header {
+      padding: 24px 0 16px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+
+    .header-label {
+      font-size: 10px;
+      letter-spacing: 0.25em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .header-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 42px;
+      letter-spacing: 0.05em;
+      line-height: 1;
+      color: var(--text);
+    }
+
+    .header-title span {
+      color: var(--accent);
+    }
+
+    /* Input section */
+    .section-label {
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .input-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .volume-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 52px;
+      color: var(--text);
+      letter-spacing: 0.03em;
+      line-height: 1;
+      width: 100%;
+      caret-color: var(--accent);
+    }
+
+    .volume-input::placeholder {
+      color: var(--muted);
+    }
+
+    .unit-badge {
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: 4px 8px;
+      white-space: nowrap;
+      align-self: flex-end;
+      margin-bottom: 8px;
+    }
+
+    /* Puffer slider */
+    .puffer-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+    }
+
+    .puffer-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .puffer-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 22px;
+      color: var(--accent);
+      letter-spacing: 0.05em;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 2px;
+      background: var(--border);
+      outline: none;
+      border-radius: 2px;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(200,255,0,0.4);
+    }
+
+    /* Results */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .result-card.active {
+      border-color: var(--accent);
+    }
+
+    .result-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: var(--accent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .result-card.active::before {
+      opacity: 1;
+    }
+
+    .result-label {
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .result-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 38px;
+      letter-spacing: 0.03em;
+      line-height: 1;
+      color: var(--text);
+      transition: color 0.3s;
+    }
+
+    .result-card.active .result-value {
+      color: var(--accent);
+    }
+
+    .result-unit {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Full width card */
+    .result-card-full {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .result-card-full .result-label {
+      margin-bottom: 0;
+    }
+
+    .result-card-full .result-value {
+      font-size: 28px;
+    }
+
+    /* Info strip */
+    .info-strip {
+      border-top: 1px solid var(--border);
+      padding: 16px 0;
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+    }
+
+    .info-item {
+      text-align: center;
+      flex: 1;
+    }
+
+    .info-val {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 18px;
+      color: var(--text);
+      letter-spacing: 0.05em;
+    }
+
+    .info-desc {
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    .divider {
+      width: 1px;
+      background: var(--border);
+      align-self: stretch;
+    }
+
+    /* Empty state */
+    .empty {
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-label">Mengenrechner</div>
+    <div class="header-title">XYRA<span>ROCK</span><br>TIEFSCHWARZ</div>
+  </div>
+
+  <div class="section-label">Zielvolumen</div>
+  <div class="input-block">
+    <div class="input-row">
+      <input
+        class="volume-input"
+        type="number"
+        inputmode="decimal"
+        id="vol"
+        placeholder="500"
+        min="1"
+        oninput="calc()"
+      />
+      <div class="unit-badge">ML / CM³</div>
+    </div>
+  </div>
+
+  <div class="puffer-block">
+    <div class="puffer-header">
+      <div class="section-label" style="margin-bottom:0">Verlustpuffer</div>
+      <div class="puffer-value" id="puffer-display">+10%</div>
+    </div>
+    <input type="range" id="puffer" min="0" max="30" value="10" step="1" oninput="calc()" />
+  </div>
+
+  <div class="section-label">Ergebnis</div>
+  <div class="results-grid">
+    <div class="result-card" id="card-wasser">
+      <div class="result-label">💧 Wasser</div>
+      <div class="result-value empty" id="wasser">—</div>
+      <div class="result-unit">Gramm (ml)</div>
+    </div>
+    <div class="result-card" id="card-pulver">
+      <div class="result-label">⚫ Pulver</div>
+      <div class="result-value empty" id="pulver">—</div>
+      <div class="result-unit">Gramm</div>
+    </div>
+  </div>
+
+  <div class="result-card-full" id="card-gesamt">
+    <div>
+      <div class="result-label">Gesamtmenge</div>
+      <div class="result-unit" id="ziel-info">—</div>
+    </div>
+    <div>
+      <div class="result-value empty" id="gesamt">—</div>
+      <div class="result-unit" style="text-align:right">Gramm</div>
+    </div>
+  </div>
+
+  <div class="info-strip">
+    <div class="info-item">
+      <div class="info-val">10 MIN</div>
+      <div class="info-desc">Verarbeitung</div>
+    </div>
+    <div class="divider"></div>
+    <div class="info-item">
+      <div class="info-val">~20 MIN</div>
+      <div class="info-desc">Erstarrung</div>
+    </div>
+    <div class="divider"></div>
+    <div class="info-item">
+      <div class="info-val">8 STD</div>
+      <div class="info-desc">Aushärtung</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Mischung: 4000g Pulver + 1000g Wasser = 2440ml Volumen
+  // pro ml: Wasser = 1000/2440, Pulver = 4000/2440
+
+  function fmt(n) {
+    return n.toLocaleString('de-DE');
+  }
+
+  function calc() {
+    var vol = parseFloat(document.getElementById('vol').value);
+    var p = parseInt(document.getElementById('puffer').value);
+
+    document.getElementById('puffer-display').textContent = '+' + p + '%';
+
+    var cards = ['card-wasser','card-pulver'];
+    var vals = ['wasser','pulver','gesamt'];
+
+    if (isNaN(vol) || vol <= 0) {
+      ['wasser','pulver','gesamt'].forEach(function(id) {
+        var el = document.getElementById(id);
+        el.textContent = '—';
+        el.classList.add('empty');
+      });
+      document.getElementById('ziel-info').textContent = '—';
+      cards.forEach(function(id) {
+        document.getElementById(id).classList.remove('active');
+      });
+      document.getElementById('card-gesamt').classList.remove('active');
+      return;
+    }
+
+    var ziel = vol * (1 + p / 100);
+    var wasser = Math.round(ziel * (1000 / 2440));
+    var pulver = Math.round(ziel * (4000 / 2440));
+    var gesamt = wasser + pulver;
+
+    document.getElementById('wasser').textContent = fmt(wasser);
+    document.getElementById('pulver').textContent = fmt(pulver);
+    document.getElementById('gesamt').textContent = fmt(gesamt);
+    document.getElementById('ziel-info').textContent =
+      fmt(Math.round(vol)) + ' ml + ' + p + '% = ' + fmt(Math.round(ziel)) + ' ml';
+
+    ['wasser','pulver','gesamt'].forEach(function(id) {
+      document.getElementById(id).classList.remove('empty');
+    });
+    cards.forEach(function(id) {
+      document.getElementById(id).classList.add('active');
+    });
+    document.getElementById('card-gesamt').classList.add('active');
+  }
+</script>
+</body>
+</html>
